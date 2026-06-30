@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GEO Guardian — How visible is your brand in AI answers?</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+    <defs>
+      <symbol id="i-radar" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="12" r="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 12 19 7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="12" cy="12" r="1.6" fill="currentColor"/></symbol>
+      <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 13 4 4 10-10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+      <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 4 2 20h20L12 4Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M12 10v4m0 3h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2 4 14h7l-1 8 9-12h-7l1-8Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+      <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 16h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
+      <symbol id="i-clip" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 4.5h6V7H9z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+      <symbol id="i-redo" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2 6m2 1v-5h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    </defs>
+  </svg>
+
+  <header class="topbar">
+    <a class="brand" href="/">
+      <span class="brand-mark"><svg><use href="#i-radar"/></svg></span>
+      GEO Guardian
+    </a>
+    <span class="topbar-tag">AI answer visibility monitor · OpenAI Agents SDK</span>
+  </header>
+
+  <main class="shell">
+    <section class="intro">
+      <p class="eyebrow">Generative Engine Optimization</p>
+      <h1>Is your brand showing up when buyers <em>ask the AI</em>?</h1>
+      <p class="lede">GEO Guardian runs buyer questions through an AI assistant, measures whether and where
+        your brand appears versus competitors, and hands you a prioritized playbook to win more of those answers.</p>
+    </section>
+
+    <!-- SETUP -->
+    <section id="setup" class="card setup">
+      <div class="setup-grid">
+        <label class="fld span2">Brand to track
+          <input id="brand" type="text" placeholder="e.g. Acme Analytics" autocomplete="off" />
+        </label>
+        <label class="fld span2">Product category
+          <input id="category" type="text" placeholder="e.g. product analytics tools for startups" autocomplete="off" />
+        </label>
+        <label class="fld span3">Competitors <small>(comma separated)</small>
+          <input id="competitors" type="text" placeholder="e.g. Mixpanel, Amplitude, PostHog" autocomplete="off" />
+        </label>
+        <label class="fld">Probes
+          <select id="probes"><option>3</option><option selected>4</option><option>5</option><option>6</option></select>
+        </label>
+      </div>
+
+      <div class="presets">
+        <span class="presets-label">Quick start</span>
+        <div id="preset-chips" class="chips"></div>
+      </div>
+
+      <button id="run-btn" class="btn-primary" disabled>
+        <svg><use href="#i-radar"/></svg> Run visibility scan
+      </button>
+      <p id="input-hint" class="hint"></p>
+    </section>
+
+    <!-- BOARD -->
+    <section id="board" class="board hidden">
+      <div class="scan-head">
+        <span class="scan-spark"><svg><use href="#i-radar"/></svg></span>
+        <p id="scan-status">Starting scan...</p>
+      </div>
+      <div id="probe-live" class="probe-live"></div>
+      <div id="dash" class="dash"></div>
+    </section>
+
+    <div id="reset-row" class="reset-row hidden">
+      <button id="reset-btn" class="btn-ghost">New scan</button>
+    </div>
+  </main>
+
+  <footer class="foot">
+    <span>GEO Guardian · HCLTech–OpenAI Agentic AI Hackathon</span>
+    <span>Built with the OpenAI Agents SDK and Codex · illustrative data</span>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

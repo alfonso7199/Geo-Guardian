@@ -1,0 +1,176 @@
+"""
+GEO Guardian - FastAPI backend.
+
+  GET  /api/presets          -> quick-start scan presets
+  POST /api/process          -> start a visibility scan (brand/category/competitors)
+  GET  /api/events/{job_id}  -> SSE: live probe results + final dashboard
+  POST /api/brief            -> turn selected remediation actions into a content brief
+
+Run:  python server.py   (http://127.0.0.1:8030)
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import os
+import uuid
+from dataclasses import asdict
+from pathlib import Path
+
+from dotenv import load_dotenv
+from fastapi import Body, FastAPI, Form, Header
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from fastapi.staticfiles import StaticFiles
+
+from agents_pipeline import GeoResult, make_brief, run_pipeline
+
+load_dotenv()
+
+ROOT = Path(__file__).parent
+WEB_DIR = ROOT / "web"
+
+app = FastAPI(title="GEO Guardian")
+JOBS: dict[str, asyncio.Queue] = {}
+
+PRESETS = [
+    {"name": "Acme Analytics", "brand": "Acme Analytics",
+     "category": "product analytics tools for startups",
+     "competitors": "Mixpanel, Amplitude, PostHog"},
+    {"name": "NimbusPay", "brand": "NimbusPay",
+     "category": "online payment gateways for SaaS companies",
+     "competitors": "Stripe, Adyen, Braintree"},
+    {"name": "FernRoast", "brand": "FernRoast",
+     "category": "specialty coffee subscription boxes",
+     "competitors": "Blue Bottle, Trade Coffee, Atlas Coffee"},
+]
+
+
+def friendly_error(e: Exception) -> str:
+    low = str(e).lower()
+    if "api key" in low or "api_key" in low:
+        return "OpenAI API key missing or rejected. Check OPENAI_API_KEY in .env."
+    if "rate limit" in low or "quota" in low:
+        return "OpenAI rate limit or quota reached. Add credit or retry later."
+    return f"{type(e).__name__}: {e}"
+
+
+def serialize(r: GeoResult) -> dict:
+    return {
+        "brand": r.brand, "category": r.category, "competitors": r.competitors,
+        "probes": r.probes, "score": r.score, "remediation": r.remediation,
+        "audit_log": [asdict(e) for e in r.audit_log],
+    }
+
+
+def apply_key(key) -> None:
+    if key:
+        os.environ["OPENAI_API_KEY"] = key
+        try:
+            from agents import set_default_openai_key
+            set_default_openai_key(key)
+        except Exception:
+            pass
+
+
+async def run_job(job_id: str, brand: str, category: str, competitors: list[str], n: int, key=None) -> None:
+    q = JOBS[job_id]
+    apply_key(key)
+
+    def emit(etype: str, **kw) -> None:
+        q.put_nowait({"type": etype, **kw})
+
+    try:
+        if not brand.strip() or not category.strip():
+            emit("error", message="Brand and category are required.")
+            return
+
+        def on_progress(agent: str, status: str) -> None:
+            q.put_nowait({"type": "progress", "agent": agent, "status": status})
+
+        def on_probe(row: dict) -> None:
+            q.put_nowait({"type": "probe", "data": {
+                "query": row.get("query"), "mentioned": row.get("mentioned"),
+                "rank": row.get("rank"), "sentiment": row.get("sentiment"),
+            }})
+
+        result = await run_pipeline(brand, category, competitors, n, on_progress, on_probe)
+        emit("result", data=serialize(result))
+    except Exception as e:  # noqa: BLE001
+        emit("error", message=friendly_error(e))
+    finally:
+        q.put_nowait(None)
+
+
+@app.get("/api/presets")
+async def presets() -> JSONResponse:
+    return JSONResponse(PRESETS)
+
+
+@app.post("/api/process")
+async def process(
+    brand: str = Form(""),
+    category: str = Form(""),
+    competitors: str = Form(""),
+    probes: int = Form(4),
+    x_openai_key: str = Header(None),
+) -> JSONResponse:
+    comp = [c.strip() for c in competitors.split(",") if c.strip()][:6]
+    job_id = uuid.uuid4().hex
+    JOBS[job_id] = asyncio.Queue()
+    asyncio.create_task(run_job(job_id, brand, category, comp, probes, key=x_openai_key))
+    return JSONResponse({"job_id": job_id})
+
+
+@app.get("/api/events/{job_id}")
+async def events(job_id: str) -> StreamingResponse:
+    async def stream():
+        q = JOBS.get(job_id)
+        if q is None:
+            yield f"data: {json.dumps({'type': 'error', 'message': 'unknown job'})}\n\n"
+            return
+        try:
+            while True:
+                item = await q.get()
+                if item is None:
+                    break
+                yield f"data: {json.dumps(item)}\n\n"
+        finally:
+            JOBS.pop(job_id, None)
+
+    return StreamingResponse(
+        stream(), media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.post("/api/brief")
+async def brief(payload: dict = Body(...), x_openai_key: str = Header(None)) -> JSONResponse:
+    apply_key(x_openai_key)
+    actions = payload.get("actions") or []
+    if not actions:
+        return JSONResponse({"error": "Select at least one action."}, status_code=200)
+    try:
+        result = await make_brief(payload.get("brand") or "", payload.get("category") or "", actions)
+        return JSONResponse(result.model_dump())
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"error": friendly_error(e)}, status_code=200)
+
+
+@app.get("/api/health")
+async def health() -> JSONResponse:
+    return JSONResponse({"openai_key": bool(os.getenv("OPENAI_API_KEY"))})
+
+
+@app.get("/")
+async def index() -> FileResponse:
+    return FileResponse(WEB_DIR / "index.html")
+
+
+app.mount("/static", StaticFiles(directory=WEB_DIR), name="static")
+
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run("server:app", host="127.0.0.1", port=8030, reload=False)
