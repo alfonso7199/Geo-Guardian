@@ -59,6 +59,7 @@ def serialize(r: GeoResult) -> dict:
     return {
         "brand": r.brand, "category": r.category, "competitors": r.competitors,
         "probes": r.probes, "score": r.score, "remediation": r.remediation,
+        "summary": r.summary,
         "audit_log": [asdict(e) for e in r.audit_log],
     }
 
@@ -73,7 +74,7 @@ def apply_key(key) -> None:
             pass
 
 
-async def run_job(job_id: str, brand: str, category: str, competitors: list[str], n: int, key=None) -> None:
+async def run_job(job_id: str, brand: str, category: str, competitors: list[str], n: int, custom_probes=None, key=None) -> None:
     q = JOBS[job_id]
     apply_key(key)
 
@@ -94,7 +95,7 @@ async def run_job(job_id: str, brand: str, category: str, competitors: list[str]
                 "rank": row.get("rank"), "sentiment": row.get("sentiment"),
             }})
 
-        result = await run_pipeline(brand, category, competitors, n, on_progress, on_probe)
+        result = await run_pipeline(brand, category, competitors, n, custom_probes=custom_probes, on_progress=on_progress, on_probe=on_probe)
         emit("result", data=serialize(result))
     except Exception as e:  # noqa: BLE001
         emit("error", message=friendly_error(e))
@@ -113,12 +114,14 @@ async def process(
     category: str = Form(""),
     competitors: str = Form(""),
     probes: int = Form(4),
+    questions: str = Form(""),
     x_openai_key: str = Header(None),
 ) -> JSONResponse:
     comp = [c.strip() for c in competitors.split(",") if c.strip()][:6]
+    custom = [q.strip() for q in questions.splitlines() if q.strip()][:8]
     job_id = uuid.uuid4().hex
     JOBS[job_id] = asyncio.Queue()
-    asyncio.create_task(run_job(job_id, brand, category, comp, probes, key=x_openai_key))
+    asyncio.create_task(run_job(job_id, brand, category, comp, probes, custom_probes=custom, key=x_openai_key))
     return JSONResponse({"job_id": job_id})
 
 

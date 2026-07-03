@@ -44,6 +44,7 @@ runBtn.onclick = () => {
   fd.append("category", $("#category").value.trim());
   fd.append("competitors", $("#competitors").value.trim());
   fd.append("probes", $("#probes").value || "4");
+  fd.append("questions", ($("#questions") && $("#questions").value) || "");
 
   $("#setup").classList.add("hidden");
   $("#board").classList.remove("hidden");
@@ -123,21 +124,44 @@ function renderDash(d) {
 
   const sc = d.score || {};
   const b = band(sc.visibility_score || 0);
+  const curScore = sc.visibility_score || 0;
+  const trendKey = "geo:last:" + (d.brand || "").toLowerCase() + "|" + (d.category || "").toLowerCase();
+  let prevScan = null;
+  try { prevScan = JSON.parse(localStorage.getItem(trendKey) || "null"); } catch (e) {}
 
-  // header
-  dash.appendChild(el("div", "panel dash-head",
-    `<h2>${esc(d.brand)}</h2><div class="sub">${esc(d.category)}${d.competitors && d.competitors.length ? " · vs " + d.competitors.map(esc).join(", ") : ""}</div>`));
+  // header + download report
+  const head = el("div", "panel dash-head",
+    `<div><h2>${esc(d.brand)}</h2><div class="sub">${esc(d.category)}${d.competitors && d.competitors.length ? " · vs " + d.competitors.map(esc).join(", ") : ""}</div></div>
+     <button class="btn-ghost dl-report">${icon("i-download")} Download report</button>`);
+  head.querySelector(".dl-report").onclick = () => downloadReport(d);
+  dash.appendChild(head);
+
+  // executive summary
+  const summ = d.summary || {};
+  if (summ.headline) {
+    dash.appendChild(el("div", "panel summary-panel",
+      `<h3>${icon("i-bolt")} Executive summary</h3>
+       <p class="summ-head">${esc(summ.headline)}</p>
+       ${(summ.key_findings || []).length ? `<ul class="summ-list">${summ.key_findings.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
+       ${summ.top_priority ? `<p class="summ-top"><b>Top priority:</b> ${esc(summ.top_priority)}</p>` : ""}`));
+  }
 
   // score
+  const delta = prevScan ? curScore - prevScan.score : null;
+  const trendHtml = (delta === null) ? "" :
+    `<span class="trend ${delta > 0 ? "up" : delta < 0 ? "down" : "flat"}">${delta > 0 ? "▲ +" + delta : delta < 0 ? "▼ " + delta : "no change"} vs last scan</span>`;
   dash.appendChild(el("div", "panel", `<h3>Visibility score</h3>
-    <div class="scorewrap">${ring(sc.visibility_score || 0)}
+    <div class="scorewrap">${ring(curScore)}
       <div class="score-side">
-        <p class="band" style="color:${b.color}">${b.label}</p>
+        <p class="band" style="color:${b.color}">${b.label} ${trendHtml}</p>
         <p class="desc">${b.desc}</p>
         <div class="statline">
           <div class="s"><b>${sc.mention_rate || 0}%</b><span>mention rate</span></div>
           <div class="s"><b>${sc.mentions || 0}/${sc.probes_total || 0}</b><span>answers featuring brand</span></div>
         </div>
+        <details class="method"><summary>${icon("i-info")} How is this scored?</summary>
+          <p>Each question where the brand appears scores by rank (1st = 1.0, 2nd = 0.75, 3rd = 0.55, lower = 0.4) × sentiment (positive = 1.0, neutral = 0.85, negative = 0.45); absent = 0. The visibility score is the average across all questions, ×100. Share of voice is the % of questions that mention each brand. These numbers are computed in code, not by the model.</p>
+        </details>
       </div></div>`));
 
   // share of voice
@@ -149,16 +173,20 @@ function renderDash(d) {
       <div class="sov-track"><div class="sov-fill" style="width:${Math.round((x.pct || 0) / maxPct * 100)}%"></div></div>
       <div class="sov-pct">${x.pct || 0}%</div></div>`).join("") + `</div>`));
 
-  // probe table
-  const rows = (d.probes || []).map((p) => `<tr>
-    <td class="q">${esc(p.query)}<div class="snip">${esc((p.snippet || "").slice(0, 160))}</div></td>
-    <td>${p.mentioned ? `<span class="badge yes">${icon("i-check")} yes</span>` : `<span class="badge no">${icon("i-x")} no</span>`}</td>
-    <td>${p.rank ? "#" + p.rank : "—"}</td>
-    <td><span class="sent ${sentClass(p.sentiment)}">${esc(p.sentiment || "absent")}</span></td>
-  </tr>`).join("");
-  dash.appendChild(el("div", "panel", `<h3>Probe results</h3>
-    <table class="ptable"><thead><tr><th>Question asked to the AI</th><th>Brand</th><th>Rank</th><th>Sentiment</th></tr></thead>
-    <tbody>${rows}</tbody></table>`));
+  // probe table (rows clickable -> the AI's full answer)
+  const ptbl = el("div", "panel", `<h3>Probe results <span class="hint-inline">— click a row to read the AI's full answer</span></h3>
+    <table class="ptable"><thead><tr><th>Question asked to the AI</th><th>Brand</th><th>Rank</th><th>Sentiment</th></tr></thead><tbody></tbody></table>`);
+  const tb = ptbl.querySelector("tbody");
+  (d.probes || []).forEach((p) => {
+    const tr = el("tr", "prow");
+    tr.innerHTML = `<td class="q">${esc(p.query)}<div class="snip">${esc((p.snippet || "").slice(0, 160))}</div></td>
+      <td>${p.mentioned ? `<span class="badge yes">${icon("i-check")} yes</span>` : `<span class="badge no">${icon("i-x")} no</span>`}</td>
+      <td>${p.rank ? "#" + p.rank : "—"}</td>
+      <td><span class="sent ${sentClass(p.sentiment)}">${esc(p.sentiment || "absent")}</span></td>`;
+    tr.onclick = () => openProbeModal(p);
+    tb.appendChild(tr);
+  });
+  dash.appendChild(ptbl);
 
   // issues
   if (sc.issues && sc.issues.length) {
@@ -201,8 +229,36 @@ function renderDash(d) {
   dash.appendChild(el("div", "panel", `<h3>${icon("i-clip")} Audit trail</h3><div class="audit">` +
     (d.audit_log || []).map((e) => `<div><span class="a-time">[${esc(e.timestamp)}]</span> <span class="a-agent">${esc(e.agent)}</span>: ${esc(e.summary)}</div>`).join("") + `</div>`));
 
+  try { localStorage.setItem(trendKey, JSON.stringify({ score: curScore, ts: Date.now() })); } catch (e) {}
+
   $("#reset-row").classList.remove("hidden");
   dash.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+// ---------- modal + report ----------
+function openModal(html) { $("#modal-body").innerHTML = html; $("#modal").classList.remove("hidden"); }
+function openProbeModal(p) {
+  openModal(`<h3>${icon("i-radar")} What the AI actually answered</h3>
+    <p class="m-q">${esc(p.query)}</p>
+    <div class="m-meta">
+      ${p.mentioned ? `<span class="badge yes">${icon("i-check")} mentioned${p.rank ? " · rank " + p.rank : ""}</span>` : `<span class="badge no">${icon("i-x")} absent</span>`}
+      <span class="sent ${sentClass(p.sentiment)}">${esc(p.sentiment || "absent")}</span>
+    </div>
+    ${(p.competitors_mentioned && p.competitors_mentioned.length) ? `<p class="m-sub">Competitors named: ${p.competitors_mentioned.map(esc).join(", ")}</p>` : ""}
+    ${(p.issues && p.issues.length) ? `<p class="m-sub" style="color:var(--red)">Errors about the brand: ${p.issues.map(esc).join("; ")}</p>` : ""}
+    <div class="m-answer">${esc(p.answer || "")}</div>`);
+}
+function downloadReport(d) {
+  const sc = d.score || {}, summ = d.summary || {};
+  let m = `# GEO Guardian report — ${d.brand}\n\nCategory: ${d.category}\nCompetitors: ${(d.competitors || []).join(", ")}\n\n`;
+  m += `Visibility score: ${sc.visibility_score || 0}/100 (${band(sc.visibility_score || 0).label})\n`;
+  m += `Mention rate: ${sc.mention_rate || 0}% · ${sc.mentions || 0}/${sc.probes_total || 0} answers feature the brand\n\n`;
+  if (summ.headline) { m += `## Executive summary\n${summ.headline}\n`; (summ.key_findings || []).forEach((x) => m += `- ${x}\n`); if (summ.top_priority) m += `\nTop priority: ${summ.top_priority}\n`; m += `\n`; }
+  m += `## Share of voice\n`; (sc.share_of_voice || []).forEach((x) => m += `- ${x.name}${x.is_brand ? " (you)" : ""}: ${x.pct}%\n`); m += `\n`;
+  m += `## Probe results\n`; (d.probes || []).forEach((p) => { m += `### ${p.query}\n- Mentioned: ${p.mentioned ? ("yes" + (p.rank ? ", rank " + p.rank : "")) : "no"} · sentiment: ${p.sentiment || "absent"}\n`; if (p.competitors_mentioned && p.competitors_mentioned.length) m += `- Competitors named: ${p.competitors_mentioned.join(", ")}\n`; if (p.issues && p.issues.length) m += `- Errors: ${p.issues.join("; ")}\n`; m += `- AI answer: ${(p.answer || "").replace(/\s+/g, " ").trim()}\n\n`; });
+  if (sc.issues && sc.issues.length) { m += `## Detected errors\n`; sc.issues.forEach((x) => m += `- ${x}\n`); m += `\n`; }
+  const items = (d.remediation && d.remediation.items) || []; if (items.length) { m += `## Remediation playbook\n`; items.forEach((it) => m += `- [impact ${it.impact} / effort ${it.effort}] ${it.action} — ${it.rationale}\n`); m += `\n`; }
+  const blob = new Blob([m], { type: "text/markdown" }); const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `geo-report-${(d.brand || "brand").replace(/\s+/g, "_")}.md`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
 // reset
@@ -213,6 +269,9 @@ $("#reset-btn").onclick = () => {
   document.querySelector(".scan-spark").style.animation = "";
   window.scrollTo({ top: 0, behavior: "smooth" });
 };
+
+$("#modal-x").onclick = () => $("#modal").classList.add("hidden");
+$("#modal").addEventListener("click", (e) => { if (e.target === $("#modal")) $("#modal").classList.add("hidden"); });
 
 loadPresets();
 updateRun();

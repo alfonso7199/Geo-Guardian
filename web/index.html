@@ -21,6 +21,8 @@
       <symbol id="i-doc" viewBox="0 0 24 24"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 3v5h5M9 13h6M9 16h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
       <symbol id="i-clip" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="17" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 4.5h6V7H9z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></symbol>
       <symbol id="i-redo" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2 6m2 1v-5h-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v12m0 0 4-4m-4 4-4-4M5 20h14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 11v5m0-8h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></symbol>
     </defs>
   </svg>
 
@@ -62,6 +64,11 @@
         <div id="preset-chips" class="chips"></div>
       </div>
 
+      <details class="custom-q">
+        <summary>Add your own questions (optional)</summary>
+        <textarea id="questions" rows="3" placeholder="One buyer question per line. If you add questions here, they are used instead of the auto-generated ones."></textarea>
+      </details>
+
       <button id="run-btn" class="btn-primary" disabled>
         <svg><use href="#i-radar"/></svg> Run visibility scan
       </button>
@@ -82,6 +89,8 @@
       <button id="reset-btn" class="btn-ghost">New scan</button>
     </div>
   </main>
+
+  <div id="modal" class="modal hidden"><div class="modal-card"><button class="modal-x" id="modal-x"><svg><use href="#i-x"/></svg></button><div id="modal-body"></div></div></div>
 
   <footer class="foot">
     <span>GEO Guardian · HCLTech–OpenAI Agentic AI Hackathon</span>

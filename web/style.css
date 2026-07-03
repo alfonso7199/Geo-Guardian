@@ -171,3 +171,46 @@ svg { width: 1em; height: 1em; }
   .fld.span2, .fld.span3 { grid-column: span 1; }
   .sov-row { grid-template-columns: 100px 1fr 40px; }
 }
+
+/* --- GEO upgrades: custom questions, summary, trend, methodology, modal, report --- */
+.custom-q { margin-top: 14px; }
+.custom-q summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+.custom-q summary:hover { color: var(--ink); }
+.custom-q textarea { width: 100%; box-sizing: border-box; margin-top: 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px; padding: 11px 13px; font-family: var(--body); font-size: 14px; color: var(--ink); resize: vertical; }
+.custom-q textarea:focus { outline: none; border-color: var(--accent); }
+
+.dash-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.dl-report { display: inline-flex; align-items: center; gap: 7px; }
+.dl-report svg { width: 15px; height: 15px; }
+
+.summary-panel .summ-head { font-size: 17px; font-weight: 600; margin: 0 0 10px; color: var(--ink); }
+.summary-panel .summ-list { margin: 0 0 10px; padding-left: 18px; }
+.summary-panel .summ-list li { font-size: 14px; margin: 5px 0; color: var(--ink); }
+.summary-panel .summ-top { font-size: 14px; margin: 0; color: var(--accent); }
+.summary-panel .summ-top b { color: var(--ink); }
+
+.trend { font-family: var(--body); font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; margin-left: 8px; vertical-align: middle; }
+.trend.up { background: rgba(52,226,160,.16); color: var(--accent); }
+.trend.down { background: rgba(240,103,106,.16); color: var(--red); }
+.trend.flat { background: var(--panel-2); color: var(--muted); }
+
+.method { margin-top: 14px; }
+.method summary { cursor: pointer; font-size: 12.5px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.method summary svg { width: 14px; height: 14px; }
+.method summary:hover { color: var(--ink); }
+.method p { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; line-height: 1.6; }
+
+.hint-inline { font-size: 12px; color: var(--muted); font-weight: 400; text-transform: none; letter-spacing: 0; }
+.ptable tbody tr.prow { cursor: pointer; transition: background .12s; }
+.ptable tbody tr.prow:hover { background: var(--panel-2); }
+
+.modal { position: fixed; inset: 0; background: rgba(6,10,14,.6); display: grid; place-items: center; z-index: 60; padding: 22px; }
+.modal.hidden { display: none !important; }
+.modal-card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; max-width: 640px; width: 100%; max-height: 82vh; overflow: auto; padding: 26px; position: relative; box-shadow: 0 30px 80px -30px rgba(0,0,0,.6); }
+.modal-x { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border: none; background: var(--panel-2); color: var(--muted); border-radius: 8px; cursor: pointer; display: grid; place-items: center; }
+.modal-x:hover { color: var(--ink); }
+.modal h3 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: .1em; color: var(--muted); }
+.modal .m-q { font-family: var(--display); font-size: 18px; font-weight: 700; margin: 0 0 12px; color: var(--ink); }
+.modal .m-meta { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.modal .m-sub { font-size: 13px; color: var(--muted); margin: 4px 0; }
+.modal .m-answer { white-space: pre-wrap; font-size: 14px; line-height: 1.65; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 16px; margin-top: 12px; }
