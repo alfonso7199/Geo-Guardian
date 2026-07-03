@@ -4,55 +4,59 @@
 
 GEO Guardian is a Generative Engine Optimization (GEO) monitor. You give it a brand, a product
 category and competitors; it runs realistic buyer questions through an AI assistant, measures
-whether and where your brand appears versus competitors, flags factual errors, and hands you a
-prioritized playbook plus a ready-to-use content brief. Built with the **OpenAI Agents SDK** for
-the HCLTech–OpenAI Agentic AI Hackathon (Track 1 — an original, market-differentiated use case).
+whether and where your brand appears versus competitors, flags factual errors, scores your
+visibility, and hands you a prioritized playbook and a ready-to-use content brief — with an
+executive summary up top and a one-click report. Built with the **OpenAI Agents SDK** for the
+HCLTech–OpenAI Agentic AI Hackathon (Track 1 — an original, market-differentiated use case).
 
 ## The problem
 
-Buyers increasingly ask AI assistants ("what's the best X for Y?") instead of searching. If your
-brand isn't recommended there, you're invisible — and unlike search rankings, there's no console
-telling you where you stand or why.
+Buyers increasingly ask an AI assistant ("what's the best X for Y?") instead of searching, and
+that answer decides which brands they even consider. If your brand isn't recommended there, you're
+invisible — and unlike search, there's no console telling you where you stand, who's winning the
+answer, or whether the model is stating wrong facts about you.
 
 ## What it does
 
-- **Generates buyer questions** for your category (no brand bias).
-- **Asks an AI assistant** each question, exactly as a buyer would.
+- **Runs buyer questions** through an AI assistant (auto-generated, or your own).
 - **Audits each answer**: is your brand mentioned, at what rank, with what sentiment, which
-  competitors appear, and are there factual errors about you.
-- **Scores visibility** (0–100) and **share of voice** vs competitors, computed deterministically.
-- **Builds a remediation playbook** (prioritized by impact/effort) and turns selected actions into
-  a concrete **content brief**.
+  competitors appear, and any factual errors — with the AI's **actual answer** kept as evidence.
+- **Scores visibility (0–100)** and **share of voice** deterministically (computed in code, not by
+  the model), with an in-app "how is this scored?" breakdown.
+- **Executive summary**: a headline, key findings and the single top priority, written by an agent.
+- **Remediation playbook** prioritized by impact/effort, and a **content brief** from the actions
+  you select.
+- **Trend over time**: re-scan a brand and see a ▲/▼ delta vs the previous scan.
+- **Download report**: export the whole scan as Markdown to share.
 
-## How it works
+## Agents
 
 ```
-brand + category + competitors
-   └─ ProbeAgent → (for each probe) AnswerAgent → AnalyzerAgent → score (Python) → RemediationAgent
-      (questions)   (AI answer)      (mention,                    (visibility,    (playbook)
-                                      rank, sentiment)             share of voice)
-                                                                         │
-                                                          select actions └─► BriefAgent (content brief)
+ProbeAgent        generates buyer questions for the category (or you supply your own)
+AnswerAgent       answers each like a generic AI assistant (the thing we measure)
+AnalyzerAgent     audits each answer: mention, rank, sentiment, competitors, errors
+(scoring)         visibility score + share of voice, computed deterministically in Python
+RemediationAgent  a prioritized GEO playbook
+SummaryAgent      the executive summary (headline, key findings, top priority)
+BriefAgent        turns selected actions into a content brief
 ```
+
+## How it differs
+
+Unlike a document-in / approve-out workflow, GEO Guardian is a **monitoring dashboard**: configure
+a scan, watch probes run live, then read the executive summary, visibility score, share-of-voice
+bars, a clickable per-question table (open the AI's full answer), the playbook, and a report.
 
 ## Tech stack
 
-- **Backend**: Python, FastAPI, OpenAI Agents SDK; probes stream in live over Server-Sent Events.
-- **Frontend**: a custom dark analytics dashboard — score ring, share-of-voice bars, per-question
-  table (HTML/CSS/JS, no build step).
-
-## Project structure
-
-```
-agents_pipeline.py   probe / answer / analyze / score / remediation / brief
-server.py            FastAPI app (process, events/SSE, presets, brief)
-web/                 index.html · style.css · app.js
-```
+- **Backend**: Python, FastAPI, OpenAI Agents SDK (structured outputs); probes stream in live over
+  Server-Sent Events. Headline metrics computed deterministically in Python.
+- **Frontend**: a custom dark analytics dashboard (HTML/CSS/JS, no build step).
 
 ## Getting started
 
-You need an **OpenAI API key** (platform.openai.com — pay-as-you-go). A scan makes several small
-calls (default model `gpt-4o-mini`), costing cents.
+You need an **OpenAI API key** (platform.openai.com). A scan makes several small model calls
+(default `gpt-4o-mini`), costing cents.
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
@@ -65,12 +69,12 @@ Open http://127.0.0.1:8030.
 
 ## Using it
 
-1. Pick a quick-start preset (Acme Analytics, NimbusPay, FernRoast) to fill the form — or type
-   your own brand, category and competitors and choose the number of probes.
+1. Click a quick-start preset (Acme Analytics, NimbusPay, FernRoast) to fill the form — or type
+   your own brand, category, competitors and probe count. Optionally add **your own questions**.
 2. Press **Run visibility scan** and watch the probes resolve live.
-3. Read the dashboard: visibility score, share of voice vs competitors, the per-question table
-   (mention / rank / sentiment), detected errors, and the remediation playbook.
-4. Tick the actions you want and **Generate content brief**.
+3. Read the executive summary and dashboard; **click any question row** to see the AI's full answer;
+   tick remediation actions and **Generate content brief**; and **Download report**.
+4. Re-scan the same brand later to see the trend delta.
 
 ## Bring your own API key
 
@@ -78,7 +82,7 @@ No key in your `.env`? Click **Add API key** in the top bar and paste your own O
 stored only in your browser (localStorage) and sent to your local server with each request; the
 server falls back to its `.env` key if none is set. Never commit your key to the repo.
 
-## Notes
+## Note
 
 Preset target brands are fictional. Results are **illustrative** — they reflect one model's answers
-at scan time, which naturally vary between runs.
+at scan time, which naturally vary between runs; GEO Guardian is a monitoring/trend tool.

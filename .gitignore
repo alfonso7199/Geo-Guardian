@@ -32,3 +32,9 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# --- Submission artifacts (kept out of the public repo) ---
+*_pitch.pdf
+*_pitch.pptx
+VIDEO_SCRIPT.md
+SUBMISSION_FORM.md

@@ -40,6 +40,11 @@
       <h1>Is your brand showing up when buyers <em>ask the AI</em>?</h1>
       <p class="lede">GEO Guardian runs buyer questions through an AI assistant, measures whether and where
         your brand appears versus competitors, and hands you a prioritized playbook to win more of those answers.</p>
+      <ol class="how-strip">
+        <li><span class="hs-n">1</span><div><b>Describe your brand</b><span>brand, category, competitors</span></div></li>
+        <li><span class="hs-n">2</span><div><b>We ask an AI</b><span>real buyer questions, answered live</span></div></li>
+        <li><span class="hs-n">3</span><div><b>See &amp; fix</b><span>score, evidence, playbook</span></div></li>
+      </ol>
     </section>
 
     <!-- SETUP -->
@@ -54,7 +59,7 @@
         <label class="fld span3">Competitors <small>(comma separated)</small>
           <input id="competitors" type="text" placeholder="e.g. Mixpanel, Amplitude, PostHog" autocomplete="off" />
         </label>
-        <label class="fld">Probes
+        <label class="fld">Probes <small>(questions to test)</small>
           <select id="probes"><option>3</option><option selected>4</option><option>5</option><option>6</option></select>
         </label>
       </div>
@@ -79,7 +84,10 @@
     <section id="board" class="board hidden">
       <div class="scan-head">
         <span class="scan-spark"><svg><use href="#i-radar"/></svg></span>
-        <p id="scan-status">Starting scan...</p>
+        <div>
+          <p id="scan-status">Starting scan...</p>
+          <p class="scan-hint">Each question is answered by an AI assistant and then audited — this usually takes 30–60 seconds.</p>
+        </div>
       </div>
       <div id="probe-live" class="probe-live"></div>
       <div id="dash" class="dash"></div>
