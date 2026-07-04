@@ -282,24 +282,31 @@ async def run_pipeline(
         probes = [p for p in pset.probes if p.strip()][:n_probes]
         audit.append(AuditEntry(_now(), "ProbeAgent", f"Generated {len(probes)} probes"))
 
-    # 2) Run each probe: answer + analyze
+    # 2) Run each probe: answer + analyze. Probes are independent, so run a
+    # small batch concurrently to keep hosted demos inside function timeouts.
     answer_agent = build_answer_agent()
     analyzer_agent = build_analyzer_agent()
-    results: list[dict] = []
-    for i, q in enumerate(probes, 1):
+    gate = asyncio.Semaphore(3)
+
+    async def run_one_probe(i: int, q: str) -> dict:
         notify("ProbeRunner", f"Querying ({i}/{len(probes)}): {q}")
-        answer = str((await Runner.run(answer_agent, input=q)).final_output)
-        assess: ProbeAssessment = (await Runner.run(
-            analyzer_agent,
-            input=(
-                f"TARGET BRAND: {brand}\nCOMPETITORS: {', '.join(competitors) or 'none given'}\n\n"
-                f"QUESTION:\n{q}\n\nASSISTANT ANSWER:\n{answer}"
-            ),
-        )).final_output
+        async with gate:
+            answer = str((await Runner.run(answer_agent, input=q)).final_output)
+            assess: ProbeAssessment = (await Runner.run(
+                analyzer_agent,
+                input=(
+                    f"TARGET BRAND: {brand}\nCOMPETITORS: {', '.join(competitors) or 'none given'}\n\n"
+                    f"QUESTION:\n{q}\n\nASSISTANT ANSWER:\n{answer}"
+                ),
+            )).final_output
         row = {"query": q, "answer": answer, **assess.model_dump()}
-        results.append(row)
         if on_probe:
             on_probe(row)
+        return row
+
+    results = await asyncio.gather(
+        *(run_one_probe(i, q) for i, q in enumerate(probes, 1))
+    )
 
     # 3) Score (Python)
     notify("ScoreAgent", "Scoring visibility and share-of-voice...")

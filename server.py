@@ -32,6 +32,7 @@ WEB_DIR = ROOT / "web"
 
 app = FastAPI(title="GEO Guardian")
 JOBS: dict[str, asyncio.Queue] = {}
+KEY_LOCK = asyncio.Lock()
 
 PRESETS = [
     {"name": "Acme Analytics", "brand": "Acme Analytics",
@@ -49,7 +50,7 @@ PRESETS = [
 def friendly_error(e: Exception) -> str:
     low = str(e).lower()
     if "api key" in low or "api_key" in low:
-        return "OpenAI API key missing or rejected. Check OPENAI_API_KEY in .env."
+        return "OpenAI API key missing or rejected. Add a key in the top bar or set OPENAI_API_KEY on the server."
     if "rate limit" in low or "quota" in low:
         return "OpenAI rate limit or quota reached. Add credit or retry later."
     return f"{type(e).__name__}: {e}"
@@ -76,7 +77,6 @@ def apply_key(key) -> None:
 
 async def run_job(job_id: str, brand: str, category: str, competitors: list[str], n: int, custom_probes=None, key=None) -> None:
     q = JOBS[job_id]
-    apply_key(key)
 
     def emit(etype: str, **kw) -> None:
         q.put_nowait({"type": etype, **kw})
@@ -95,7 +95,14 @@ async def run_job(job_id: str, brand: str, category: str, competitors: list[str]
                 "rank": row.get("rank"), "sentiment": row.get("sentiment"),
             }})
 
-        result = await run_pipeline(brand, category, competitors, n, custom_probes=custom_probes, on_progress=on_progress, on_probe=on_probe)
+        async with KEY_LOCK:
+            apply_key(key)
+            result = await run_pipeline(
+                brand, category, competitors, n,
+                custom_probes=custom_probes,
+                on_progress=on_progress,
+                on_probe=on_probe,
+            )
         emit("result", data=serialize(result))
     except Exception as e:  # noqa: BLE001
         emit("error", message=friendly_error(e))
@@ -125,6 +132,28 @@ async def process(
     return JSONResponse({"job_id": job_id})
 
 
+@app.post("/api/run")
+async def run_now(
+    brand: str = Form(""),
+    category: str = Form(""),
+    competitors: str = Form(""),
+    probes: int = Form(4),
+    questions: str = Form(""),
+    x_openai_key: str = Header(None),
+) -> JSONResponse:
+    if not brand.strip() or not category.strip():
+        return JSONResponse({"error": "Brand and category are required."}, status_code=200)
+    comp = [c.strip() for c in competitors.split(",") if c.strip()][:6]
+    custom = [q.strip() for q in questions.splitlines() if q.strip()][:8]
+    try:
+        async with KEY_LOCK:
+            apply_key(x_openai_key)
+            result = await run_pipeline(brand, category, comp, probes, custom_probes=custom)
+        return JSONResponse({"data": serialize(result)})
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"error": friendly_error(e)}, status_code=200)
+
+
 @app.get("/api/events/{job_id}")
 async def events(job_id: str) -> StreamingResponse:
     async def stream():
@@ -149,12 +178,13 @@ async def events(job_id: str) -> StreamingResponse:
 
 @app.post("/api/brief")
 async def brief(payload: dict = Body(...), x_openai_key: str = Header(None)) -> JSONResponse:
-    apply_key(x_openai_key)
     actions = payload.get("actions") or []
     if not actions:
         return JSONResponse({"error": "Select at least one action."}, status_code=200)
     try:
-        result = await make_brief(payload.get("brand") or "", payload.get("category") or "", actions)
+        async with KEY_LOCK:
+            apply_key(x_openai_key)
+            result = await make_brief(payload.get("brand") or "", payload.get("category") or "", actions)
         return JSONResponse(result.model_dump())
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"error": friendly_error(e)}, status_code=200)

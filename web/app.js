@@ -55,6 +55,21 @@ runBtn.onclick = () => {
   $("#board").scrollIntoView({ behavior: "smooth", block: "start" });
 
   (async () => {
+    const host = window.location.hostname;
+    const useStreaming = host === "localhost" || host === "127.0.0.1" || host === "::1";
+    if (!useStreaming) {
+      $("#scan-status").textContent = "Running hosted scan. This can take 30-60 seconds...";
+      try {
+        const resp = await fetch("/api/run", { method: "POST", body: fd });
+        const out = await resp.json();
+        if (out.error) return showError(out.error);
+        if (!out.data) return showError("The server did not return scan data.");
+        return renderDash(out.data);
+      } catch (e) {
+        return showError("Could not complete the hosted scan. Please retry.");
+      }
+    }
+
     let job;
     try { job = await (await fetch("/api/process", { method: "POST", body: fd })).json(); }
     catch (e) { return showError("Could not reach the server. Is it running?"); }
@@ -87,7 +102,7 @@ function showError(message) {
   document.querySelector(".scan-spark").style.animation = "none";
   $("#dash").innerHTML = `<div class="panel"><h3>${icon("i-alert")} Scan failed</h3>
     <p style="color:var(--muted)">${esc(message)}</p>
-    <p style="color:var(--muted)">Confirm OPENAI_API_KEY is set in .env, then retry.</p></div>`;
+    <p style="color:var(--muted)">Use the Add API key button or set OPENAI_API_KEY on the server, then retry.</p></div>`;
   $("#reset-row").classList.remove("hidden");
 }
 
