@@ -65,13 +65,14 @@
       </div>
 
       <div class="presets">
-        <span class="presets-label">Quick start</span>
+        <span class="presets-label">Quick start <small>loads competitors and the exact questions to test</small></span>
         <div id="preset-chips" class="chips"></div>
       </div>
 
       <details class="custom-q">
-        <summary>Add your own questions (optional)</summary>
-        <textarea id="questions" rows="3" placeholder="One buyer question per line. If you add questions here, they are used instead of the auto-generated ones."></textarea>
+        <summary>Questions the AI will be asked</summary>
+        <p class="custom-note">One buyer question per line. Leave empty to let ProbeAgent generate them from the category.</p>
+        <textarea id="questions" rows="3" placeholder="What are the best tools for...?&#10;Which alternative to ... should I consider?&#10;What should a startup use for ...?"></textarea>
       </details>
 
       <button id="run-btn" class="btn-primary" disabled>

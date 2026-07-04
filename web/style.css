@@ -50,6 +50,7 @@ svg { width: 1em; height: 1em; }
 .fld input:focus, .fld select:focus { outline: none; border-color: var(--accent); }
 .presets { margin-top: 18px; }
 .presets-label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
+.presets-label small { color: #5f6877; font-weight: 400; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; }
 .chip { border: 1px solid var(--line); background: var(--panel-2); border-radius: 999px; padding: 8px 15px; font-size: 13.5px; font-family: var(--body); color: var(--ink); cursor: pointer; transition: all .15s; }
 .chip:hover { border-color: var(--accent); color: var(--accent); }
@@ -176,6 +177,7 @@ svg { width: 1em; height: 1em; }
 .custom-q { margin-top: 14px; }
 .custom-q summary { cursor: pointer; font-size: 13px; color: var(--muted); }
 .custom-q summary:hover { color: var(--ink); }
+.custom-note { margin: 8px 0 0; color: var(--muted); font-size: 12.5px; }
 .custom-q textarea { width: 100%; box-sizing: border-box; margin-top: 10px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px; padding: 11px 13px; font-family: var(--body); font-size: 14px; color: var(--ink); resize: vertical; }
 .custom-q textarea:focus { outline: none; border-color: var(--accent); }
 

@@ -37,13 +37,28 @@ KEY_LOCK = asyncio.Lock()
 PRESETS = [
     {"name": "Acme Analytics", "brand": "Acme Analytics",
      "category": "product analytics tools for startups",
-     "competitors": "Mixpanel, Amplitude, PostHog"},
+     "competitors": "Mixpanel, Amplitude, PostHog",
+     "questions": [
+         "What are the best product analytics tools for an early-stage SaaS startup?",
+         "Which analytics platform should a product-led growth team use instead of Google Analytics?",
+         "What are affordable Mixpanel alternatives for startup product teams?",
+     ]},
     {"name": "NimbusPay", "brand": "NimbusPay",
      "category": "online payment gateways for SaaS companies",
-     "competitors": "Stripe, Adyen, Braintree"},
+     "competitors": "Stripe, Adyen, Braintree",
+     "questions": [
+         "What are the best payment gateways for a B2B SaaS company?",
+         "Which Stripe alternatives are strongest for subscription billing and global payments?",
+         "What payment processor should a startup use to reduce failed payments?",
+     ]},
     {"name": "FernRoast", "brand": "FernRoast",
      "category": "specialty coffee subscription boxes",
-     "competitors": "Blue Bottle, Trade Coffee, Atlas Coffee"},
+     "competitors": "Blue Bottle, Trade Coffee, Atlas Coffee",
+     "questions": [
+         "What are the best specialty coffee subscription boxes for gifts?",
+         "Which coffee subscription is best for freshly roasted single-origin beans?",
+         "What are good alternatives to Blue Bottle for monthly coffee delivery?",
+     ]},
 ]
 
 

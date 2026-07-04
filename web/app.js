@@ -30,6 +30,12 @@ async function loadPresets() {
         $("#brand").value = p.brand || "";
         $("#category").value = p.category || "";
         $("#competitors").value = p.competitors || "";
+        if ($("#questions") && Array.isArray(p.questions)) {
+          $("#questions").value = p.questions.join("\n");
+          $("#probes").value = String(Math.min(Math.max(p.questions.length, 3), 6));
+          const details = document.querySelector(".custom-q");
+          if (details) details.open = true;
+        }
         updateRun();
       };
       box.appendChild(chip);
