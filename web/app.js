@@ -8,6 +8,7 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": 
 const runBtn = $("#run-btn");
 const hint = $("#input-hint");
 const fields = ["brand", "category", "competitors", "probes"].map((id) => $("#" + id));
+let selectedPreset = "";
 
 function updateRun() {
   runBtn.disabled = !($("#brand").value.trim() && $("#category").value.trim());
@@ -26,11 +27,13 @@ async function loadPresets() {
     const box = $("#preset-chips");
     presets.forEach((p) => {
       const chip = el("button", "chip");
+      chip.type = "button";
       chip.textContent = p.name;
       chip.onclick = () => {
-        const wasActive = chip.classList.contains("active");
+        const wasActive = selectedPreset === p.name;
         document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
         if (wasActive) {
+          selectedPreset = "";
           $("#brand").value = "";
           $("#category").value = "";
           $("#competitors").value = "";
@@ -41,6 +44,7 @@ async function loadPresets() {
           updateRun();
           return;
         }
+        selectedPreset = p.name;
         chip.classList.add("active");
         $("#brand").value = p.brand || "";
         $("#category").value = p.category || "";
