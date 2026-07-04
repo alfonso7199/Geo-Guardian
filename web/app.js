@@ -28,7 +28,19 @@ async function loadPresets() {
       const chip = el("button", "chip");
       chip.textContent = p.name;
       chip.onclick = () => {
+        const wasActive = chip.classList.contains("active");
         document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+        if (wasActive) {
+          $("#brand").value = "";
+          $("#category").value = "";
+          $("#competitors").value = "";
+          if ($("#questions")) $("#questions").value = "";
+          $("#probes").value = "3";
+          const details = document.querySelector(".custom-q");
+          if (details) details.open = false;
+          updateRun();
+          return;
+        }
         chip.classList.add("active");
         $("#brand").value = p.brand || "";
         $("#category").value = p.category || "";
