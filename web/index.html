@@ -41,7 +41,7 @@
       <p class="lede">GEO Guardian runs buyer questions through an AI assistant, measures whether and where
         your brand appears versus competitors, and hands you a prioritized playbook to win more of those answers.</p>
       <ol class="how-strip">
-        <li><span class="hs-n">1</span><div><b>Describe your brand</b><span>brand, category, competitors</span></div></li>
+        <li><span class="hs-n">1</span><div><b>Describe your brand</b><span>brand, category, market, competitors</span></div></li>
         <li><span class="hs-n">2</span><div><b>We ask an AI</b><span>real buyer questions, answered live</span></div></li>
         <li><span class="hs-n">3</span><div><b>See &amp; fix</b><span>score, evidence, playbook</span></div></li>
       </ol>
@@ -55,6 +55,23 @@
         </label>
         <label class="fld span2">Product category
           <input id="category" type="text" placeholder="e.g. product analytics tools for startups" autocomplete="off" />
+        </label>
+        <label class="fld span2">Market category
+          <select id="market-category">
+            <option value="">General / auto</option>
+            <option>B2B SaaS</option>
+            <option>Fintech and payments</option>
+            <option>Retail / e-commerce</option>
+            <option>Consumer subscription commerce</option>
+            <option>IT consulting and digital services</option>
+            <option>Hardware and electronics retail</option>
+            <option>Travel and hospitality</option>
+            <option>Healthcare and wellness</option>
+            <option>Education and training</option>
+          </select>
+        </label>
+        <label class="fld span2">Market / country
+          <input id="market" type="text" placeholder="e.g. Spain, United States, Europe" autocomplete="off" />
         </label>
         <label class="fld span3">Competitors <small>(comma separated)</small>
           <input id="competitors" type="text" placeholder="e.g. Mixpanel, Amplitude, PostHog" autocomplete="off" />

@@ -53,6 +53,11 @@ class ProbeAssessment(BaseModel):
     )
 
 
+class BrandResolution(BaseModel):
+    target_aliases: list[str] = Field(default_factory=list)
+    competitor_aliases: dict[str, list[str]] = Field(default_factory=dict)
+
+
 class RemediationItem(BaseModel):
     action: str
     rationale: str
@@ -89,10 +94,13 @@ class AuditEntry:
 class GeoResult:
     brand: str
     category: str
+    market_category: str
+    market: str
     competitors: list[str]
     probes: list[dict]
     score: dict
     remediation: dict
+    brand_profile: dict = field(default_factory=dict)
     summary: dict = field(default_factory=dict)
     audit_log: list[AuditEntry] = field(default_factory=list)
 
@@ -101,19 +109,29 @@ def _now() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def brand_aliases(brand: str) -> list[str]:
-    aliases = [brand.strip()]
-    compact = brand.replace(" ", "").strip()
-    if compact and compact.lower() != brand.strip().lower():
+def deterministic_aliases(name: str) -> list[str]:
+    clean = " ".join((name or "").strip().split())
+    aliases = [clean]
+    compact = clean.replace(" ", "")
+    if compact and compact.lower() != clean.lower():
         aliases.append(compact)
-    if brand.strip().lower() == "hcltech":
-        aliases.extend(["HCL Technologies", "HCL Tech"])
-    return list(dict.fromkeys(a for a in aliases if a))
+    if "." not in compact and compact:
+        aliases.append(f"{compact.lower()}.com")
+    return list(dict.fromkeys(a for a in aliases if len(a) > 2))
 
 
-def answer_mentions_brand(answer: str, aliases: list[str]) -> bool:
-    low = answer.lower()
-    return any(alias.lower() in low for alias in aliases)
+def text_mentions_any(text: str, aliases: list[str]) -> bool:
+    low = (text or "").lower()
+    return any(alias.lower() in low for alias in aliases if len(alias) > 2)
+
+
+def normalize_aliases(base: str, proposed: list[str]) -> list[str]:
+    out = deterministic_aliases(base)
+    for alias in proposed or []:
+        clean = " ".join(str(alias).strip().split())
+        if clean and len(clean) > 2:
+            out.append(clean)
+    return list(dict.fromkeys(out))
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +149,23 @@ def build_probe_agent() -> Agent:
             "any specific target brand. Return only the questions."
         ),
         output_type=ProbeSet,
+    )
+
+
+def build_brand_resolver_agent() -> Agent:
+    return Agent(
+        name="BrandResolverAgent",
+        model=MODEL,
+        instructions=(
+            "You normalize brand names before a visibility scan. Given a target brand, "
+            "competitors, a market category and a country/market, propose spelling "
+            "variants, common aliases, punctuation/spacing variants and obvious domain "
+            "forms that should count as the same brand in an AI answer. Do not invent "
+            "unrelated companies. If a competitor looks like a likely typo, include the "
+            "probable intended spelling as an alias, but keep it under that competitor's "
+            "original name. Return aliases only."
+        ),
+        output_type=BrandResolution,
     )
 
 
@@ -230,7 +265,46 @@ def _sentiment_factor(s: str) -> float:
     )
 
 
-def compute_score(brand: str, competitors: list[str], results: list[dict]) -> dict:
+async def resolve_brand_profile(
+    brand: str,
+    competitors: list[str],
+    category: str,
+    market_category: str,
+    market: str,
+) -> BrandResolution:
+    fallback = BrandResolution(
+        target_aliases=deterministic_aliases(brand),
+        competitor_aliases={c: deterministic_aliases(c) for c in competitors},
+    )
+    try:
+        resolved: BrandResolution = (await Runner.run(
+            build_brand_resolver_agent(),
+            input=(
+                f"TARGET BRAND: {brand}\n"
+                f"COMPETITORS: {', '.join(competitors) or 'none'}\n"
+                f"PRODUCT CATEGORY: {category}\n"
+                f"MARKET CATEGORY: {market_category or 'not specified'}\n"
+                f"COUNTRY / MARKET: {market or 'not specified'}"
+            ),
+        )).final_output
+    except Exception:
+        return fallback
+
+    return BrandResolution(
+        target_aliases=normalize_aliases(brand, resolved.target_aliases),
+        competitor_aliases={
+            c: normalize_aliases(c, resolved.competitor_aliases.get(c, []))
+            for c in competitors
+        },
+    )
+
+
+def compute_score(
+    brand: str,
+    competitors: list[str],
+    results: list[dict],
+    competitor_aliases: Optional[dict[str, list[str]]] = None,
+) -> dict:
     n = max(1, len(results))
     mentions = [r for r in results if r.get("mentioned")]
     points = 0.0
@@ -243,9 +317,11 @@ def compute_score(brand: str, competitors: list[str], results: list[dict]) -> di
     brand_hits = sum(1 for r in results if r.get("mentioned"))
     sov.append({"name": brand, "pct": round(100 * brand_hits / n), "is_brand": True})
     for c in competitors:
+        aliases = (competitor_aliases or {}).get(c) or deterministic_aliases(c)
         hits = sum(
             1 for r in results
-            if any(c.lower() == m.lower() for m in (r.get("competitors_mentioned") or []))
+            if any(text_mentions_any(m, aliases) for m in (r.get("competitors_mentioned") or []))
+            or text_mentions_any(r.get("answer") or "", aliases)
         )
         sov.append({"name": c, "pct": round(100 * hits / n), "is_brand": False})
     sov.sort(key=lambda x: x["pct"], reverse=True)
@@ -275,6 +351,8 @@ async def run_pipeline(
     competitors: list[str],
     n_probes: int = 4,
     custom_probes: Optional[list[str]] = None,
+    market_category: str = "",
+    market: str = "",
     on_progress: Optional[Callable[[str, str], None]] = None,
     on_probe: Optional[Callable[[dict], None]] = None,
 ) -> GeoResult:
@@ -284,7 +362,16 @@ async def run_pipeline(
 
     audit: list[AuditEntry] = []
     n_probes = max(2, min(8, int(n_probes or 4)))
-    aliases = brand_aliases(brand)
+    notify("BrandResolverAgent", "Normalizing brand and competitor names...")
+    brand_profile = await resolve_brand_profile(brand, competitors, category, market_category, market)
+    aliases = brand_profile.target_aliases
+    audit.append(AuditEntry(_now(), "BrandResolverAgent", f"Tracking aliases: {', '.join(aliases[:5])}"))
+
+    context = (
+        f"Product category: {category}\n"
+        f"Market category: {market_category or 'not specified'}\n"
+        f"Country / market: {market or 'global / not specified'}"
+    )
 
     # 1) Probes — use the user's own questions if given, else generate them.
     custom = [p.strip() for p in (custom_probes or []) if p and p.strip()]
@@ -295,7 +382,12 @@ async def run_pipeline(
         notify("ProbeAgent", f"Generating {n_probes} buyer questions for the category...")
         pset = (await Runner.run(
             build_probe_agent(),
-            input=f"Category: {category}\nGenerate exactly {n_probes} questions.",
+            input=(
+                f"{context}\n"
+                f"Generate exactly {n_probes} buyer questions. If a country/market is "
+                "specified, make the questions clearly about that market. Do not mention "
+                "the target brand."
+            ),
         )).final_output
         probes = [p for p in pset.probes if p.strip()][:n_probes]
         audit.append(AuditEntry(_now(), "ProbeAgent", f"Generated {len(probes)} probes"))
@@ -312,10 +404,11 @@ async def run_pipeline(
             answer = str((await Runner.run(
                 answer_agent,
                 input=(
-                    f"Category context: {category}\n"
+                    f"{context}\n"
                     f"Buyer question: {q}\n\n"
                     "Answer the buyer question in this category. If the question asks for "
-                    "options, vendors, tools or companies, name specific options."
+                    "options, vendors, tools or companies, name specific options. If a "
+                    "country/market is specified, answer for that market."
                 ),
             )).final_output)
             assess: ProbeAssessment = (await Runner.run(
@@ -323,12 +416,13 @@ async def run_pipeline(
                 input=(
                     f"TARGET BRAND: {brand}\n"
                     f"TARGET BRAND ALIASES: {', '.join(aliases)}\n"
-                    f"COMPETITORS: {', '.join(competitors) or 'none given'}\n\n"
+                    f"COMPETITORS: {json.dumps(brand_profile.competitor_aliases, ensure_ascii=False)}\n"
+                    f"{context}\n\n"
                     f"QUESTION:\n{q}\n\nASSISTANT ANSWER:\n{answer}"
                 ),
             )).final_output
         row = {"query": q, "answer": answer, **assess.model_dump()}
-        if not row.get("mentioned") and answer_mentions_brand(answer, aliases):
+        if not row.get("mentioned") and text_mentions_any(answer, aliases):
             row["mentioned"] = True
             row["sentiment"] = row.get("sentiment") if row.get("sentiment") != "absent" else "neutral"
             row["snippet"] = row.get("snippet") or aliases[0]
@@ -342,7 +436,7 @@ async def run_pipeline(
 
     # 3) Score (Python)
     notify("ScoreAgent", "Scoring visibility and share-of-voice...")
-    score = compute_score(brand, competitors, results)
+    score = compute_score(brand, competitors, results, brand_profile.competitor_aliases)
     audit.append(AuditEntry(_now(), "ScoreAgent", f"Visibility {score['visibility_score']}/100; mention rate {score['mention_rate']}%"))
 
     # 4) Remediation
@@ -350,6 +444,8 @@ async def run_pipeline(
     missed = [r["query"] for r in results if not r.get("mentioned")]
     summary = {
         "brand": brand, "category": category,
+        "market_category": market_category,
+        "market": market,
         "visibility_score": score["visibility_score"],
         "missed_queries": missed,
         "share_of_voice": score["share_of_voice"],
@@ -365,6 +461,8 @@ async def run_pipeline(
     notify("SummaryAgent", "Writing the executive summary...")
     exec_input = {
         "brand": brand, "category": category,
+        "market_category": market_category,
+        "market": market,
         "visibility_score": score["visibility_score"],
         "mention_rate": score["mention_rate"],
         "share_of_voice": score["share_of_voice"],
@@ -382,21 +480,34 @@ async def run_pipeline(
     return GeoResult(
         brand=brand,
         category=category,
+        market_category=market_category,
+        market=market,
         competitors=competitors,
         probes=results,
         score=score,
         remediation=remediation.model_dump(),
+        brand_profile=brand_profile.model_dump(),
         summary=exec_summary.model_dump(),
         audit_log=audit,
     )
 
 
-async def make_brief(brand: str, category: str, actions: list[str]) -> ContentBrief:
+async def make_brief(
+    brand: str,
+    category: str,
+    actions: list[str],
+    market_category: str = "",
+    market: str = "",
+) -> ContentBrief:
     agent = build_brief_agent()
     res = await Runner.run(
         agent,
         input=(
-            f"BRAND: {brand}\nCATEGORY: {category}\n\nSELECTED ACTIONS:\n- "
+            f"BRAND: {brand}\n"
+            f"PRODUCT CATEGORY: {category}\n"
+            f"MARKET CATEGORY: {market_category or 'not specified'}\n"
+            f"COUNTRY / MARKET: {market or 'not specified'}\n\n"
+            "SELECTED ACTIONS:\n- "
             + "\n- ".join(actions)
         ),
     )

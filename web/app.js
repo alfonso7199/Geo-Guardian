@@ -7,7 +7,7 @@ const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": 
 
 const runBtn = $("#run-btn");
 const hint = $("#input-hint");
-const fields = ["brand", "category", "competitors", "probes"].map((id) => $("#" + id));
+const fields = ["brand", "category", "market-category", "market", "competitors", "probes"].map((id) => $("#" + id));
 let selectedPreset = "";
 
 function updateRun() {
@@ -36,6 +36,8 @@ async function loadPresets() {
           selectedPreset = "";
           $("#brand").value = "";
           $("#category").value = "";
+          $("#market-category").value = "";
+          $("#market").value = "";
           $("#competitors").value = "";
           if ($("#questions")) $("#questions").value = "";
           $("#probes").value = "3";
@@ -48,6 +50,8 @@ async function loadPresets() {
         chip.classList.add("active");
         $("#brand").value = p.brand || "";
         $("#category").value = p.category || "";
+        $("#market-category").value = p.market_category || "";
+        $("#market").value = p.market || "";
         $("#competitors").value = p.competitors || "";
         if ($("#questions") && Array.isArray(p.questions)) {
           $("#questions").value = p.questions.join("\n");
@@ -67,6 +71,8 @@ runBtn.onclick = () => {
   const fd = new FormData();
   fd.append("brand", $("#brand").value.trim());
   fd.append("category", $("#category").value.trim());
+  fd.append("market_category", $("#market-category").value.trim());
+  fd.append("market", $("#market").value.trim());
   fd.append("competitors", $("#competitors").value.trim());
   fd.append("probes", $("#probes").value || "4");
   fd.append("questions", ($("#questions") && $("#questions").value) || "");
@@ -165,13 +171,13 @@ function renderDash(d) {
   const sc = d.score || {};
   const b = band(sc.visibility_score || 0);
   const curScore = sc.visibility_score || 0;
-  const trendKey = "geo:last:" + (d.brand || "").toLowerCase() + "|" + (d.category || "").toLowerCase();
+  const trendKey = "geo:last:" + (d.brand || "").toLowerCase() + "|" + (d.category || "").toLowerCase() + "|" + (d.market_category || "").toLowerCase() + "|" + (d.market || "").toLowerCase();
   let prevScan = null;
   try { prevScan = JSON.parse(localStorage.getItem(trendKey) || "null"); } catch (e) {}
 
   // header + download report
   const head = el("div", "panel dash-head",
-    `<div><h2>${esc(d.brand)}</h2><div class="sub">${esc(d.category)}${d.competitors && d.competitors.length ? " · vs " + d.competitors.map(esc).join(", ") : ""}</div></div>
+    `<div><h2>${esc(d.brand)}</h2><div class="sub">${esc(d.category)}${d.market_category ? " · " + esc(d.market_category) : ""}${d.market ? " · " + esc(d.market) : ""}${d.competitors && d.competitors.length ? " · vs " + d.competitors.map(esc).join(", ") : ""}</div></div>
      <button class="btn-ghost dl-report">${icon("i-download")} Download report</button>`);
   head.querySelector(".dl-report").onclick = () => downloadReport(d);
   dash.appendChild(head);
@@ -255,7 +261,7 @@ function renderDash(d) {
     note.innerHTML = `<span class="spinner"></span> Drafting brief...`;
     try {
       const br = await (await fetch("/api/brief", { method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brand: d.brand, category: d.category, actions: chosen }) })).json();
+        body: JSON.stringify({ brand: d.brand, category: d.category, market_category: d.market_category || "", market: d.market || "", actions: chosen }) })).json();
       note.textContent = "";
       if (br.error) { note.textContent = br.error; return; }
       out.innerHTML = `<div class="brief"><h4>${esc(br.title)}</h4><p class="sub">Audience: ${esc(br.audience)}</p>
@@ -291,6 +297,7 @@ function openProbeModal(p) {
 function downloadReport(d) {
   const sc = d.score || {}, summ = d.summary || {};
   let m = `# GEO Guardian report — ${d.brand}\n\nCategory: ${d.category}\nCompetitors: ${(d.competitors || []).join(", ")}\n\n`;
+  if (d.market_category || d.market) m += `Market category: ${d.market_category || "not specified"}\nMarket / country: ${d.market || "not specified"}\n\n`;
   m += `Visibility score: ${sc.visibility_score || 0}/100 (${band(sc.visibility_score || 0).label})\n`;
   m += `Mention rate: ${sc.mention_rate || 0}% · ${sc.mentions || 0}/${sc.probes_total || 0} answers feature the brand\n\n`;
   if (summ.headline) { m += `## Executive summary\n${summ.headline}\n`; (summ.key_findings || []).forEach((x) => m += `- ${x}\n`); if (summ.top_priority) m += `\nTop priority: ${summ.top_priority}\n`; m += `\n`; }

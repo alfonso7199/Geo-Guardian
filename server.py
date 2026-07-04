@@ -37,6 +37,8 @@ KEY_LOCK = asyncio.Lock()
 PRESETS = [
     {"name": "HCLTech", "brand": "HCLTech",
      "category": "enterprise IT consulting, AI transformation and digital services",
+     "market_category": "IT consulting and digital services",
+     "market": "Global / India-led enterprise market",
      "competitors": "Accenture, Capgemini, Infosys, TCS, Cognizant",
      "questions": [
          "Which enterprise IT consulting firms are best for AI transformation and application modernization?",
@@ -45,6 +47,8 @@ PRESETS = [
      ]},
     {"name": "Acme Analytics", "brand": "Acme Analytics",
      "category": "product analytics tools for startups",
+     "market_category": "B2B SaaS",
+     "market": "United States",
      "competitors": "Mixpanel, Amplitude, PostHog",
      "questions": [
          "What are the best product analytics tools for an early-stage SaaS startup?",
@@ -53,6 +57,8 @@ PRESETS = [
      ]},
     {"name": "NimbusPay", "brand": "NimbusPay",
      "category": "online payment gateways for SaaS companies",
+     "market_category": "Fintech and payments",
+     "market": "United States and Europe",
      "competitors": "Stripe, Adyen, Braintree",
      "questions": [
          "What are the best payment gateways for a B2B SaaS company?",
@@ -61,6 +67,8 @@ PRESETS = [
      ]},
     {"name": "FernRoast", "brand": "FernRoast",
      "category": "specialty coffee subscription boxes",
+     "market_category": "Consumer subscription commerce",
+     "market": "United States",
      "competitors": "Blue Bottle, Trade Coffee, Atlas Coffee",
      "questions": [
          "What are the best specialty coffee subscription boxes for gifts?",
@@ -81,8 +89,11 @@ def friendly_error(e: Exception) -> str:
 
 def serialize(r: GeoResult) -> dict:
     return {
-        "brand": r.brand, "category": r.category, "competitors": r.competitors,
+        "brand": r.brand, "category": r.category,
+        "market_category": r.market_category, "market": r.market,
+        "competitors": r.competitors,
         "probes": r.probes, "score": r.score, "remediation": r.remediation,
+        "brand_profile": r.brand_profile,
         "summary": r.summary,
         "audit_log": [asdict(e) for e in r.audit_log],
     }
@@ -98,7 +109,17 @@ def apply_key(key) -> None:
             pass
 
 
-async def run_job(job_id: str, brand: str, category: str, competitors: list[str], n: int, custom_probes=None, key=None) -> None:
+async def run_job(
+    job_id: str,
+    brand: str,
+    category: str,
+    competitors: list[str],
+    n: int,
+    custom_probes=None,
+    market_category: str = "",
+    market: str = "",
+    key=None,
+) -> None:
     q = JOBS[job_id]
 
     def emit(etype: str, **kw) -> None:
@@ -123,6 +144,8 @@ async def run_job(job_id: str, brand: str, category: str, competitors: list[str]
             result = await run_pipeline(
                 brand, category, competitors, n,
                 custom_probes=custom_probes,
+                market_category=market_category,
+                market=market,
                 on_progress=on_progress,
                 on_probe=on_probe,
             )
@@ -142,6 +165,8 @@ async def presets() -> JSONResponse:
 async def process(
     brand: str = Form(""),
     category: str = Form(""),
+    market_category: str = Form(""),
+    market: str = Form(""),
     competitors: str = Form(""),
     probes: int = Form(4),
     questions: str = Form(""),
@@ -151,7 +176,13 @@ async def process(
     custom = [q.strip() for q in questions.splitlines() if q.strip()][:8]
     job_id = uuid.uuid4().hex
     JOBS[job_id] = asyncio.Queue()
-    asyncio.create_task(run_job(job_id, brand, category, comp, probes, custom_probes=custom, key=x_openai_key))
+    asyncio.create_task(run_job(
+        job_id, brand, category, comp, probes,
+        custom_probes=custom,
+        market_category=market_category,
+        market=market,
+        key=x_openai_key,
+    ))
     return JSONResponse({"job_id": job_id})
 
 
@@ -159,6 +190,8 @@ async def process(
 async def run_now(
     brand: str = Form(""),
     category: str = Form(""),
+    market_category: str = Form(""),
+    market: str = Form(""),
     competitors: str = Form(""),
     probes: int = Form(4),
     questions: str = Form(""),
@@ -171,7 +204,12 @@ async def run_now(
     try:
         async with KEY_LOCK:
             apply_key(x_openai_key)
-            result = await run_pipeline(brand, category, comp, probes, custom_probes=custom)
+            result = await run_pipeline(
+                brand, category, comp, probes,
+                custom_probes=custom,
+                market_category=market_category,
+                market=market,
+            )
         return JSONResponse({"data": serialize(result)})
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"error": friendly_error(e)}, status_code=200)
@@ -207,7 +245,13 @@ async def brief(payload: dict = Body(...), x_openai_key: str = Header(None)) -> 
     try:
         async with KEY_LOCK:
             apply_key(x_openai_key)
-            result = await make_brief(payload.get("brand") or "", payload.get("category") or "", actions)
+            result = await make_brief(
+                payload.get("brand") or "",
+                payload.get("category") or "",
+                actions,
+                market_category=payload.get("market_category") or "",
+                market=payload.get("market") or "",
+            )
         return JSONResponse(result.model_dump())
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"error": friendly_error(e)}, status_code=200)
