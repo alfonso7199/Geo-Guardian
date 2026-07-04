@@ -184,7 +184,7 @@ function renderDash(d) {
           <div class="s"><b>${sc.mentions || 0}/${sc.probes_total || 0}</b><span>answers featuring brand</span></div>
         </div>
         <details class="method"><summary>${icon("i-info")} How is this scored?</summary>
-          <p>Each question where the brand appears scores by rank (1st = 1.0, 2nd = 0.75, 3rd = 0.55, lower = 0.4) × sentiment (positive = 1.0, neutral = 0.85, negative = 0.45); absent = 0. The visibility score is the average across all questions, ×100. Share of voice is the % of questions that mention each brand. These numbers are computed in code, not by the model.</p>
+          <p>Each question where the brand appears scores by rank (1st = 1.0, 2nd = 0.75, 3rd = 0.55, lower = 0.4) × sentiment (positive = 1.0, neutral = 0.85, negative = 0.45); absent = 0. The visibility score is the average across all questions, ×100. Share of voice is the % of tested answers that mention each brand. This is not a test of whether the AI knows the company exists; it measures whether the brand appears in these buyer-style answers.</p>
         </details>
       </div></div>`));
 

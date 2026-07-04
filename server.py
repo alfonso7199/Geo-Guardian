@@ -41,7 +41,7 @@ PRESETS = [
      "questions": [
          "Which enterprise IT consulting firms are best for AI transformation and application modernization?",
          "What are strong alternatives to Accenture for cloud, data and digital transformation projects?",
-         "Which global IT services companies should a large enterprise consider for managed services?",
+         "Which Indian IT services companies are strongest for enterprise digital transformation and managed services?",
      ]},
     {"name": "Acme Analytics", "brand": "Acme Analytics",
      "category": "product analytics tools for startups",

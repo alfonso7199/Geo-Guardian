@@ -101,6 +101,21 @@ def _now() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
+def brand_aliases(brand: str) -> list[str]:
+    aliases = [brand.strip()]
+    compact = brand.replace(" ", "").strip()
+    if compact and compact.lower() != brand.strip().lower():
+        aliases.append(compact)
+    if brand.strip().lower() == "hcltech":
+        aliases.extend(["HCL Technologies", "HCL Tech"])
+    return list(dict.fromkeys(a for a in aliases if a))
+
+
+def answer_mentions_brand(answer: str, aliases: list[str]) -> bool:
+    low = answer.lower()
+    return any(alias.lower() in low for alias in aliases)
+
+
 # ---------------------------------------------------------------------------
 # Agents
 # ---------------------------------------------------------------------------
@@ -178,7 +193,9 @@ def build_summary_agent() -> Agent:
             "crisp executive summary: a one-sentence headline on where the brand "
             "stands, 2-4 concrete key findings (name the competitors that dominate and "
             "the questions where the brand is invisible), and the single top priority "
-            "to act on first. Be direct and specific; no fluff."
+            "to act on first. Be direct and specific; no fluff. Avoid implying the AI "
+            "does not know the company exists; say the brand was not mentioned in the "
+            "tested answers or tested buyer queries."
         ),
         output_type=ExecSummary,
     )
@@ -267,6 +284,7 @@ async def run_pipeline(
 
     audit: list[AuditEntry] = []
     n_probes = max(2, min(8, int(n_probes or 4)))
+    aliases = brand_aliases(brand)
 
     # 1) Probes — use the user's own questions if given, else generate them.
     custom = [p.strip() for p in (custom_probes or []) if p and p.strip()]
@@ -303,11 +321,17 @@ async def run_pipeline(
             assess: ProbeAssessment = (await Runner.run(
                 analyzer_agent,
                 input=(
-                    f"TARGET BRAND: {brand}\nCOMPETITORS: {', '.join(competitors) or 'none given'}\n\n"
+                    f"TARGET BRAND: {brand}\n"
+                    f"TARGET BRAND ALIASES: {', '.join(aliases)}\n"
+                    f"COMPETITORS: {', '.join(competitors) or 'none given'}\n\n"
                     f"QUESTION:\n{q}\n\nASSISTANT ANSWER:\n{answer}"
                 ),
             )).final_output
         row = {"query": q, "answer": answer, **assess.model_dump()}
+        if not row.get("mentioned") and answer_mentions_brand(answer, aliases):
+            row["mentioned"] = True
+            row["sentiment"] = row.get("sentiment") if row.get("sentiment") != "absent" else "neutral"
+            row["snippet"] = row.get("snippet") or aliases[0]
         if on_probe:
             on_probe(row)
         return row
