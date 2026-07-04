@@ -11,9 +11,12 @@ const fields = ["brand", "category", "competitors", "probes"].map((id) => $("#" 
 
 function updateRun() {
   runBtn.disabled = !($("#brand").value.trim() && $("#category").value.trim());
+  const usingFixedQuestions = !!($("#questions") && $("#questions").value.trim());
+  $("#probes").disabled = usingFixedQuestions;
   hint.textContent = "";
 }
 fields.forEach((f) => f.addEventListener("input", updateRun));
+if ($("#questions")) $("#questions").addEventListener("input", updateRun);
 
 // presets
 async function loadPresets() {

@@ -48,6 +48,7 @@ svg { width: 1em; height: 1em; }
 .fld input, .fld select { background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px; padding: 12px 13px; font-family: var(--body); font-size: 14.5px; color: var(--ink); }
 .fld input::placeholder { color: #5f6877; }
 .fld input:focus, .fld select:focus { outline: none; border-color: var(--accent); }
+.fld select:disabled { opacity: .45; cursor: not-allowed; }
 .presets { margin-top: 18px; }
 .presets-label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
 .presets-label small { color: #5f6877; font-weight: 400; }

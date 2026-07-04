@@ -59,7 +59,7 @@
         <label class="fld span3">Competitors <small>(comma separated)</small>
           <input id="competitors" type="text" placeholder="e.g. Mixpanel, Amplitude, PostHog" autocomplete="off" />
         </label>
-        <label class="fld">Probes <small>(questions to test)</small>
+        <label class="fld">Auto probes <small>(only if questions are empty)</small>
           <select id="probes"><option selected>3</option><option>4</option><option>5</option><option>6</option></select>
         </label>
       </div>
@@ -71,7 +71,7 @@
 
       <details class="custom-q">
         <summary>Questions the AI will be asked</summary>
-        <p class="custom-note">One buyer question per line. Leave empty to let ProbeAgent generate them from the category.</p>
+        <p class="custom-note">One buyer question per line. When this box has questions, the Auto probes selector is ignored.</p>
         <textarea id="questions" rows="3" placeholder="What are the best tools for...?&#10;Which alternative to ... should I consider?&#10;What should a startup use for ...?"></textarea>
       </details>
 
