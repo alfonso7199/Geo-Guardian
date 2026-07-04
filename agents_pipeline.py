@@ -291,7 +291,15 @@ async def run_pipeline(
     async def run_one_probe(i: int, q: str) -> dict:
         notify("ProbeRunner", f"Querying ({i}/{len(probes)}): {q}")
         async with gate:
-            answer = str((await Runner.run(answer_agent, input=q)).final_output)
+            answer = str((await Runner.run(
+                answer_agent,
+                input=(
+                    f"Category context: {category}\n"
+                    f"Buyer question: {q}\n\n"
+                    "Answer the buyer question in this category. If the question asks for "
+                    "options, vendors, tools or companies, name specific options."
+                ),
+            )).final_output)
             assess: ProbeAssessment = (await Runner.run(
                 analyzer_agent,
                 input=(

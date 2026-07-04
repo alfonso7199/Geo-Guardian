@@ -35,6 +35,14 @@ JOBS: dict[str, asyncio.Queue] = {}
 KEY_LOCK = asyncio.Lock()
 
 PRESETS = [
+    {"name": "HCLTech", "brand": "HCLTech",
+     "category": "enterprise IT consulting, AI transformation and digital services",
+     "competitors": "Accenture, Capgemini, Infosys, TCS, Cognizant",
+     "questions": [
+         "Which enterprise IT consulting firms are best for AI transformation and application modernization?",
+         "What are strong alternatives to Accenture for cloud, data and digital transformation projects?",
+         "Which global IT services companies should a large enterprise consider for managed services?",
+     ]},
     {"name": "Acme Analytics", "brand": "Acme Analytics",
      "category": "product analytics tools for startups",
      "competitors": "Mixpanel, Amplitude, PostHog",
